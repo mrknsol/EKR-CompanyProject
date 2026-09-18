@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="../build/EKR.Presentation.props" />
+</Project>

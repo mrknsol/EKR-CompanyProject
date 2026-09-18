@@ -1,0 +1,178 @@
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.profile-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.profile-card {
+  padding: 1.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.profile-card h3 {
+  font-size: 1.15rem;
+}
+
+.profile-orders {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.profile-order-block {
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.profile-order-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr auto;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.profile-order-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+
+.order-edit-panel {
+  margin-top: 0.85rem;
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg, #fff) 92%, var(--accent, #333) 8%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.order-edit-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.order-edit-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding-top: 0.55rem;
+  border-top: 1px dashed var(--line);
+}
+
+.order-edit-item-title {
+  font-size: 0.95rem;
+}
+
+.order-edit-color-row {
+  display: grid;
+  grid-template-columns: 1.4fr auto;
+  gap: 0.55rem;
+  align-items: end;
+}
+
+.series-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+}
+
+.series-field input {
+  width: 5.5rem;
+}
+
+.size-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.chip {
+  border: 1px solid var(--line);
+  background: transparent;
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.chip-on {
+  border-color: var(--accent, #222);
+  background: color-mix(in srgb, var(--accent, #222) 18%, transparent);
+  font-weight: 600;
+}
+
+.order-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.deposit-warn {
+  background: color-mix(in srgb, #b45309 14%, transparent);
+  border: 1px solid color-mix(in srgb, #b45309 45%, transparent);
+  color: inherit;
+  padding: 0.9rem 1rem;
+  border-radius: 10px;
+}
+
+.deposit-ack {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  margin-top: 1rem;
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.deposit-ack input {
+  margin-top: 0.2rem;
+}
+
+.paymentType {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.paymentType label {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+@media (max-width: 860px) {
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-order-row {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-order-actions {
+    justify-content: flex-start;
+  }
+
+  .order-edit-color-row {
+    grid-template-columns: 1fr;
+  }
+}

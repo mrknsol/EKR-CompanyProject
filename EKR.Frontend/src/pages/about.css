@@ -1,0 +1,93 @@
+.about-hero {
+  padding: 4rem 0 2rem;
+  background:
+    linear-gradient(120deg, rgba(12, 15, 20, 0.92), rgba(12, 15, 20, 0.55)),
+    url('https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?auto=format&fit=crop&w=1600&q=80')
+      center/cover;
+  color: #fff;
+  overflow: hidden;
+}
+
+.about-hero .container {
+  animation: fade-in 0.6s ease both;
+}
+
+.about-hero h1 {
+  font-size: clamp(2rem, 5vw, 3.4rem);
+  max-width: 16ch;
+  margin: 0.5rem 0 1rem;
+}
+
+.about-lead {
+  max-width: 48ch;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+.about-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: -2rem;
+  position: relative;
+  z-index: 1;
+}
+
+.about-card {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s ease;
+}
+
+.about-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow);
+}
+
+.about-card h2 {
+  font-size: 1.35rem;
+}
+
+.about-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.85rem;
+}
+
+.about-stat {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  transition:
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.3s ease,
+    border-color 0.25s ease;
+}
+
+.about-stat:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(14, 17, 22, 0.08);
+  border-color: rgba(47, 93, 86, 0.2);
+}
+
+.about-stats strong,
+.about-stat strong {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+}
+
+@media (max-width: 800px) {
+  .about-grid,
+  .about-stats {
+    grid-template-columns: 1fr;
+  }
+}

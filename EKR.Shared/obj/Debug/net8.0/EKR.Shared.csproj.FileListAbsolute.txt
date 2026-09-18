@@ -1,0 +1,12 @@
+/Users/mrknsol/Documents/ekr/EKR.Api/EKR.Shared/bin/Debug/net8.0/EKR.Shared.deps.json
+/Users/mrknsol/Documents/ekr/EKR.Api/EKR.Shared/bin/Debug/net8.0/EKR.Shared.dll
+/Users/mrknsol/Documents/ekr/EKR.Api/EKR.Shared/bin/Debug/net8.0/EKR.Shared.pdb
+/Users/mrknsol/Documents/ekr/EKR.Api/EKR.Shared/obj/Debug/net8.0/EKR.Shared.GeneratedMSBuildEditorConfig.editorconfig
+/Users/mrknsol/Documents/ekr/EKR.Api/EKR.Shared/obj/Debug/net8.0/EKR.Shared.AssemblyInfoInputs.cache
+/Users/mrknsol/Documents/ekr/EKR.Api/EKR.Shared/obj/Debug/net8.0/EKR.Shared.AssemblyInfo.cs
+/Users/mrknsol/Documents/ekr/EKR.Api/EKR.Shared/obj/Debug/net8.0/EKR.Shared.csproj.CoreCompileInputs.cache
+/Users/mrknsol/Documents/ekr/EKR.Api/EKR.Shared/obj/Debug/net8.0/EKR.Shared.dll
+/Users/mrknsol/Documents/ekr/EKR.Api/EKR.Shared/obj/Debug/net8.0/refint/EKR.Shared.dll
+/Users/mrknsol/Documents/ekr/EKR.Api/EKR.Shared/obj/Debug/net8.0/EKR.Shared.pdb
+/Users/mrknsol/Documents/ekr/EKR.Api/EKR.Shared/obj/Debug/net8.0/ref/EKR.Shared.dll
+/Users/mrknsol/Documents/ekr/EKR.Api/EKR.Shared/obj/Debug/net8.0/EKR.Shared.csproj.AssemblyReference.cache

@@ -1,0 +1,6 @@
+@EKR.Api_HostAddress = http://localhost:5015
+
+GET {{EKR.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
