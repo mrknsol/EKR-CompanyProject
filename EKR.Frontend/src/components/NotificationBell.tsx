@@ -3,7 +3,7 @@ import { Bell } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useT } from '../hooks/useT';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { selectSession } from '../store/slices/authSlice';
+import { selectIsAdmin, selectSession } from '../store/slices/authSlice';
 import {
   addNotification,
   clearNotifications,
@@ -15,37 +15,53 @@ import {
 } from '../store/slices/notificationSlice';
 import {
   getNotificationPermission,
+  readAdminOrdersMap,
   requestNotificationPermission,
   showBrowserNotification,
   subscribeNotifications,
+  writeAdminOrdersMap,
 } from './browserNotify';
 import './notificationBell.css';
 
 export function NotificationBell() {
   const dispatch = useAppDispatch();
   const session = useAppSelector(selectSession);
+  const isAdmin = useAppSelector(selectIsAdmin);
   const t = useT();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
   const userId = session?.user.id;
   const email = session?.user.email;
-  const items = useAppSelector(selectMyNotifications(userId, email));
-  const unread = useAppSelector(selectUnreadCount(userId, email));
+  const items = useAppSelector(selectMyNotifications(userId, email, isAdmin));
+  const unread = useAppSelector(selectUnreadCount(userId, email, isAdmin));
   const permission = getNotificationPermission();
 
   useEffect(() => {
     const unsub = subscribeNotifications((notification) => {
+      const forAdmin = notification.audience === 'admin';
+      if (forAdmin && !isAdmin) return;
+      if (!forAdmin && isAdmin) return;
+
+      if (!forAdmin) {
+        const mine =
+          (userId && notification.userId === userId) ||
+          (email && notification.userEmail.toLowerCase() === email.toLowerCase());
+        if (!mine) return;
+      }
+
       dispatch(addNotification(notification));
-      const mine =
-        (userId && notification.userId === userId) ||
-        (email && notification.userEmail.toLowerCase() === email.toLowerCase());
-      if (mine) {
-        showBrowserNotification(notification.title, notification.body, notification.orderId);
+      showBrowserNotification(notification.title, notification.body, notification.orderId);
+
+      // Keep admin poll map in sync so we don't double-notify on next fetch
+      if (forAdmin && isAdmin && notification.orderId) {
+        const map = readAdminOrdersMap();
+        map[notification.orderId] = notification.status;
+        writeAdminOrdersMap(map);
       }
     });
     return unsub;
-  }, [dispatch, userId, email]);
+  }, [dispatch, userId, email, isAdmin]);
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -86,7 +102,7 @@ export function NotificationBell() {
                 <button
                   type="button"
                   className="btn btn-ghost"
-                  onClick={() => dispatch(markAllRead({ userId, email }))}
+                  onClick={() => dispatch(markAllRead({ userId, email, isAdmin }))}
                 >
                   {t('notif_mark_all')}
                 </button>
@@ -95,7 +111,7 @@ export function NotificationBell() {
                 <button
                   type="button"
                   className="btn btn-ghost"
-                  onClick={() => dispatch(clearNotifications({ userId, email }))}
+                  onClick={() => dispatch(clearNotifications({ userId, email, isAdmin }))}
                 >
                   {t('notif_clear')}
                 </button>
@@ -151,7 +167,7 @@ export function NotificationBell() {
                     </span>
                   </button>
                   <Link
-                    to="/profile"
+                    to={isAdmin ? '/admin/orders' : `/orders/${n.orderId}`}
                     className="notif-link"
                     onClick={() => {
                       dispatch(markRead(n.id));

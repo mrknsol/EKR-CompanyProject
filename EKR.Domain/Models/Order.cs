@@ -7,7 +7,7 @@ public class Order
 
     public int TotalAmount { get; set; }
     public int TotalPieces { get; set; }
-    public OrderStatus Status { get; set; } = OrderStatus.Pending;
+    public OrderStatus Status { get; set; } = OrderStatus.Accepted;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
 

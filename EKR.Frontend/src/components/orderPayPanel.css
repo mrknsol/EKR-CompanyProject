@@ -1,0 +1,51 @@
+.order-pay-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 1rem 1.1rem;
+  border-radius: 10px;
+  border: 1px solid var(--line, #ddd);
+  background: color-mix(in srgb, var(--bg, #fff) 94%, var(--accent, #333) 6%);
+}
+
+.order-pay-panel.is-open {
+  border-color: color-mix(in srgb, #b45309 45%, var(--line, #ddd));
+  background: color-mix(in srgb, #b45309 10%, transparent);
+}
+
+.order-pay-panel.is-locked {
+  opacity: 0.92;
+}
+
+.order-pay-panel--compact {
+  padding: 0.85rem 0.95rem;
+}
+
+.order-pay-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.order-pay-amount {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.order-pay-hint {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.order-pay-locked {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #9a3412;
+}
+
+.order-pay-panel .btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

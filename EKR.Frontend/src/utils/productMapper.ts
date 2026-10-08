@@ -11,6 +11,9 @@ export interface ProductApiDto {
   colors: string[];
   sizes: string[];
   imageUrls: string[];
+  piecesPerSeries?: number;
+  name?: string;
+  description?: string;
 }
 
 const DEFAULT_PIECES_PER_SERIES = 4;
@@ -27,16 +30,17 @@ export function mapProductFromApi(dto: ProductApiDto): Product {
   const imageUrls = dto.imageUrls ?? [];
   const colors = (dto.colors ?? []).map((c) => parseColor(c, imageUrls));
   const sizes = dto.sizes ?? [];
+  const piecesPerSeries = dto.piecesPerSeries || sizes.length || DEFAULT_PIECES_PER_SERIES;
 
   return {
     id: dto.id,
     code: dto.code,
-    name: `${dto.modelType} ${dto.code}`.trim(),
+    name: (dto.name && dto.name.trim()) || `${dto.modelType} ${dto.code}`.trim(),
     modelType: dto.modelType,
     season: dto.season,
     wholesalePrice: dto.price,
     minQuantity: dto.quantity,
-    piecesPerSeries: DEFAULT_PIECES_PER_SERIES,
+    piecesPerSeries,
     sizeSystem: sizes.some((s) => /^[A-Z]/i.test(s)) ? 'letter' : 'numeric',
     sizes,
     colors: colors.length
@@ -45,7 +49,7 @@ export function mapProductFromApi(dto: ProductApiDto): Product {
     material: '',
     lining: '',
     features: [],
-    description: '',
+    description: dto.description || '',
     imageUrls,
     isInStock: dto.isInStock,
     createdAt: new Date().toISOString(),

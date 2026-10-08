@@ -1,0 +1,40 @@
+# IDE / JetBrains / VS
+.idea/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.sw?
+
+# OS
+.DS_Store
+Thumbs.db
+
+# .NET build
+**/bin/
+**/obj/
+*.dll
+*.pdb
+*.exe
+*.cache
+project.lock.json
+*.nuget.props
+*.nuget.targets
+
+# Secrets / local config
+.env
+.env.*
+!.env.example
+**/appsettings.Development.json
+**/appsettings.Local.json
+*.pfx
+
+# Logs
+*.log
+logs/
+
+# Frontend (also covered in EKR.Frontend/.gitignore)
+EKR.Frontend/node_modules/
+EKR.Frontend/dist/
+EKR.Frontend/dist-ssr/

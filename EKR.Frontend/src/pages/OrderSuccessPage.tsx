@@ -82,9 +82,12 @@ export function OrderSuccessPage() {
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginTop: '1.5rem' }}>
+          <Link to={`/orders/${order.id}`} className="btn btn-primary">
+            {t('order_track')}
+          </Link>
           <button
             type="button"
-            className="btn btn-primary"
+            className="btn btn-ghost"
             onClick={() => void downloadInvoice(order)}
           >
             {t('inv_download')}

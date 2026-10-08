@@ -3,6 +3,7 @@ using System.Text;
 using EKR.Application.Interfaces;
 using EKR.Application.Services;
 using EKR.Domain.Models;
+using EKR.Infrastructure.Catalog;
 using EKR.Infrastructure.Configurations;
 using EKR.Infrastructure.Context;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -33,6 +34,7 @@ builder.Services.AddTransient<IAuthService, AuthService>();
 builder.Services.AddTransient<IAccountService, AccountService>();
 builder.Services.AddTransient<IProductService, ProductService>();
 builder.Services.AddTransient<IOrderService, OrderService>();
+builder.Services.AddScoped<IFactoryOrderPublisher, FactoryOrderPublisher>();
 builder.Services.AddSingleton<IFileStorageService, MinioStorageService>();
 
 builder.Services.AddAuthentication(options =>
@@ -58,7 +60,20 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddDbContext<EKRApplicationContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        npgsql => npgsql.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(10),
+            errorCodesToAdd: null)));
+
+builder.Services.AddDbContext<CatalogDbContext>(options =>
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        npgsql => npgsql.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(10),
+            errorCodesToAdd: null)));
 
 builder.Services.AddAutoMapper(typeof(MappingConfiguration));
 builder.Services.AddSwaggerGen(options =>
@@ -101,16 +116,27 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
+await EnsureCompanyDatabaseAsync(app.Services);
 await EnsureOrderColumnsAsync(app.Services);
+await EnsureOrderItemCatalogFkAsync(app.Services);
 await SeedAdminAsync(app.Services);
 
 app.Run();
+
+static async Task EnsureCompanyDatabaseAsync(IServiceProvider services)
+{
+    using var scope = services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<EKRApplicationContext>();
+    // Neon / fresh DB: create public schema tables (Users, Orders, …)
+    await db.Database.MigrateAsync();
+}
 
 static async Task EnsureOrderColumnsAsync(IServiceProvider services)
 {
     using var scope = services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<EKRApplicationContext>();
 
+    // Safe after MigrateAsync — IF NOT EXISTS keeps this idempotent on Neon/local.
     // EF ExecuteSqlRaw treats { } as format placeholders — escape as {{ }}.
     await db.Database.ExecuteSqlRawAsync("""
         ALTER TABLE "Orders" ADD COLUMN IF NOT EXISTS "TotalPieces" integer NOT NULL DEFAULT 0;
@@ -119,6 +145,33 @@ static async Task EnsureOrderColumnsAsync(IServiceProvider services)
         ALTER TABLE "Orders" ADD COLUMN IF NOT EXISTS "AmountPaid" numeric NOT NULL DEFAULT 0;
         ALTER TABLE "Orders" ADD COLUMN IF NOT EXISTS "BalanceDue" numeric NOT NULL DEFAULT 0;
         ALTER TABLE "Orders" ADD COLUMN IF NOT EXISTS "SnapshotJson" text NOT NULL DEFAULT '{{}}';
+        """);
+}
+
+
+static async Task EnsureOrderItemCatalogFkAsync(IServiceProvider services)
+{
+    using var scope = services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<EKRApplicationContext>();
+    await db.Database.ExecuteSqlRawAsync("""
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.table_constraints
+                WHERE table_name = 'OrderItems'
+                  AND constraint_type = 'FOREIGN KEY'
+                  AND constraint_name LIKE '%ProductId%'
+            ) THEN
+                EXECUTE (
+                    SELECT 'ALTER TABLE "OrderItems" DROP CONSTRAINT "' || constraint_name || '"'
+                    FROM information_schema.table_constraints
+                    WHERE table_name = 'OrderItems'
+                      AND constraint_type = 'FOREIGN KEY'
+                      AND constraint_name LIKE '%ProductId%'
+                    LIMIT 1
+                );
+            END IF;
+        END $$;
         """);
 }
 

@@ -61,6 +61,19 @@ public class OrderController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("{id:guid}/pay-balance")]
+    public async Task<IActionResult> PayBalance(Guid id)
+    {
+        var userId = User.GetUserId();
+        if (userId is null)
+            return Unauthorized(Response<WholesaleOrderDTO>.Fail("Invalid token"));
+
+        var result = await _orderService.PayBalanceAsync(id, userId.Value);
+        if (!result.Success)
+            return BadRequest(result);
+        return Ok(result);
+    }
+
     [HttpPut("{id:guid}/snapshot")]
     public async Task<IActionResult> UpdateSnapshot(Guid id, [FromBody] UpdateOrderSnapshotDTO dto)
     {

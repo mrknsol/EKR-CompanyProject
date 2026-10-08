@@ -10,7 +10,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const orderId = event.notification.data?.orderId;
-  const url = orderId ? '/profile' : '/';
+  const url = orderId ? `/orders/${orderId}` : '/';
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {

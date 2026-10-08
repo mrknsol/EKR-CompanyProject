@@ -2,7 +2,14 @@ import type { PaymentType } from "../constants/payment";
 
 export type SizeSystem = 'letter' | 'numeric';
 export type UserRole = 'Admin' | 'User' | 'Manager';
-export type OrderStatus = 'pending' | 'paid' | 'confirmed' | 'shipped' | 'cancelled';
+export type OrderStatus =
+  | 'accepted'
+  | 'in_production'
+  | 'ready'
+  | 'paid'
+  | 'in_transit'
+  | 'delivered'
+  | 'cancelled';
 
 export interface ProductColor {
   code: string;

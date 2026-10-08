@@ -1,15 +1,21 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import type { CheckoutForm, Order, OrderItemSnapshot, OrderStatus } from '../../types';
 import { calcBalanceDue, calcDepositAmount, type PaymentType } from '../../constants/payment';
+import { isOrderEditable } from '../../constants/orderStatus';
 import { cartItemPieces } from '../../utils/cart';
 import { diffOrderItems, recalcOrderItem } from '../../utils/orderDiff';
 import {
   createOrderRequest,
   fetchAllOrdersRequest,
   fetchMyOrdersRequest,
+  payOrderBalanceRequest,
   updateOrderSnapshotRequest,
   updateOrderStatusRequest,
 } from '../../api/order';
+import {
+  broadcastNotification,
+  buildAdminNewOrderNotification,
+} from '../../components/browserNotify';
 import { clear } from './cartSlice';
 import type { RootState } from '../index';
 
@@ -107,7 +113,7 @@ export const placeOrder = createAsyncThunk(
     const amountPaid =
       paymentType === 'full' ? totalPrice : calcDepositAmount(totalPrice);
     const balanceDue = calcBalanceDue(totalPrice, amountPaid);
-    const status: OrderStatus = paymentType === 'full' ? 'paid' : 'pending';
+    const status: OrderStatus = 'accepted';
     const createdAt = new Date().toISOString();
     const revision = buildRevision(1, items, amountPaid, []);
 
@@ -131,6 +137,20 @@ export const placeOrder = createAsyncThunk(
 
     const saved = await createOrderRequest(draft);
     dispatch(clear());
+
+    const lang = state.locale.lang ?? 'en';
+    const customerName =
+      `${saved.customer.firstName} ${saved.customer.lastName}`.trim() ||
+      saved.customer.email;
+    broadcastNotification(
+      buildAdminNewOrderNotification({
+        orderId: saved.id,
+        customerName,
+        userEmail: saved.customer.email,
+        lang,
+      })
+    );
+
     return saved;
   }
 );
@@ -144,7 +164,7 @@ export const saveOrderEdits = createAsyncThunk(
     const state = getState() as RootState;
     const order = state.orders.orders.find((o) => o.id === id);
     if (!order) throw new Error('Order not found');
-    if (order.status === 'cancelled' || order.status === 'shipped') {
+    if (!isOrderEditable(order.status)) {
       throw new Error('Order cannot be edited');
     }
 
@@ -181,6 +201,10 @@ export const changeOrderStatusRemote = createAsyncThunk(
     return updateOrderStatusRequest(id, status);
   }
 );
+
+export const payOrderBalance = createAsyncThunk('orders/payBalance', async (id: string) => {
+  return payOrderBalanceRequest(id);
+});
 
 const ordersSlice = createSlice({
   name: 'orders',
@@ -237,6 +261,11 @@ const ordersSlice = createSlice({
         );
       })
       .addCase(changeOrderStatusRemote.fulfilled, (state, action) => {
+        state.orders = state.orders.map((o) =>
+          o.id === action.payload.id ? action.payload : o
+        );
+      })
+      .addCase(payOrderBalance.fulfilled, (state, action) => {
         state.orders = state.orders.map((o) =>
           o.id === action.payload.id ? action.payload : o
         );

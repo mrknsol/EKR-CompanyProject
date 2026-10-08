@@ -2,24 +2,33 @@ using System.Text.Json;
 using EKR.Application.Interfaces;
 using EKR.Domain.Models;
 using EKR.Infrastructure.Context;
+using EKR.Infrastructure.Converters;
 using EKR.Shared.DTOs;
 using EKR.Shared.Responses;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace EKR.Application.Services;
 
 public class OrderService : IOrderService
 {
     private readonly EKRApplicationContext _context;
+    private readonly IFactoryOrderPublisher _factoryOrders;
+    private readonly ILogger<OrderService> _logger;
 
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    public OrderService(EKRApplicationContext context)
+    public OrderService(
+        EKRApplicationContext context,
+        IFactoryOrderPublisher factoryOrders,
+        ILogger<OrderService> logger)
     {
         _context = context;
+        _factoryOrders = factoryOrders;
+        _logger = logger;
     }
 
     public async Task<Response<WholesaleOrderDTO>> CreateAsync(Guid customerId, CreateWholesaleOrderDTO dto)
@@ -29,17 +38,11 @@ public class OrderService : IOrderService
             if (dto.Items is null || dto.Items.Count == 0)
                 return Response<WholesaleOrderDTO>.Fail("Order must contain items");
 
-            var productIds = dto.Items.Select(i => i.ProductId).Distinct().ToList();
-            var products = await _context.Products
-                .Where(p => productIds.Contains(p.Id))
-                .Select(p => p.Id)
-                .ToListAsync();
-
-            if (products.Count != productIds.Count)
-                return Response<WholesaleOrderDTO>.Fail("One or more products were not found");
-
-            var status = MapStatus(dto.PaymentType == "full" ? "paid" : "pending");
+            var status = OrderStatus.Accepted;
             var orderId = Guid.NewGuid();
+
+            var customer = await _context.Users.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Id == customerId);
 
             var order = new Order
             {
@@ -68,6 +71,19 @@ public class OrderService : IOrderService
 
             _context.Orders.Add(order);
             await _context.SaveChangesAsync();
+
+            try
+            {
+                var customerName = customer is null
+                    ? "Website customer"
+                    : $"{customer.Name} {customer.Surname}".Trim();
+                await _factoryOrders.PublishWebsiteOrderAsync(
+                    orderId, customerName, dto.CustomerComments, order.SnapshotJson);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to publish factory order for website order {OrderId}", orderId);
+            }
 
             return Response<WholesaleOrderDTO>.Ok(ToDto(order), "Order created");
         }
@@ -104,12 +120,49 @@ public class OrderService : IOrderService
         if (order is null)
             return Response<WholesaleOrderDTO>.Fail("Order not found");
 
-        order.Status = MapStatus(status);
+        var next = MapStatus(status);
+
+        // If admin marks Ready and balance is already 0 (full payment at checkout) → auto Paid
+        if (next == OrderStatus.Ready && order.BalanceDue <= 0)
+            next = OrderStatus.Paid;
+
+        order.Status = next;
         order.UpdatedAt = DateTime.UtcNow;
         order.SnapshotJson = PatchSnapshotStatus(order.SnapshotJson, order.Status);
         await _context.SaveChangesAsync();
 
         return Response<WholesaleOrderDTO>.Ok(ToDto(order), "Status updated");
+    }
+
+    public async Task<Response<WholesaleOrderDTO>> PayBalanceAsync(Guid orderId, Guid customerId)
+    {
+        var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == orderId);
+        if (order is null)
+            return Response<WholesaleOrderDTO>.Fail("Order not found");
+
+        if (order.CustomerId != customerId)
+            return Response<WholesaleOrderDTO>.Fail("Forbidden");
+
+        if (order.Status != OrderStatus.Ready)
+            return Response<WholesaleOrderDTO>.Fail("Balance can only be paid when the order is ready");
+
+        if (order.BalanceDue <= 0)
+        {
+            order.Status = OrderStatus.Paid;
+            order.UpdatedAt = DateTime.UtcNow;
+            order.SnapshotJson = PatchSnapshotStatus(order.SnapshotJson, order.Status);
+            await _context.SaveChangesAsync();
+            return Response<WholesaleOrderDTO>.Ok(ToDto(order), "Order already fully paid");
+        }
+
+        order.AmountPaid += order.BalanceDue;
+        order.BalanceDue = 0;
+        order.Status = OrderStatus.Paid;
+        order.UpdatedAt = DateTime.UtcNow;
+        order.SnapshotJson = PatchSnapshotPayment(order.SnapshotJson, order);
+        await _context.SaveChangesAsync();
+
+        return Response<WholesaleOrderDTO>.Ok(ToDto(order), "Balance paid");
     }
 
     public async Task<Response<WholesaleOrderDTO>> UpdateSnapshotAsync(
@@ -125,7 +178,7 @@ public class OrderService : IOrderService
         if (!isAdmin && order.CustomerId != customerId)
             return Response<WholesaleOrderDTO>.Fail("Forbidden");
 
-        if (order.Status is OrderStatus.Cancelled or OrderStatus.Shipped or OrderStatus.Delivered)
+        if (order.Status is OrderStatus.Cancelled or OrderStatus.InTransit or OrderStatus.Delivered)
             return Response<WholesaleOrderDTO>.Fail("Order cannot be edited");
 
         order.SnapshotJson = PatchSnapshotIds(dto.SnapshotJson, order.Id, order.CustomerId, order.Status);
@@ -156,27 +209,19 @@ public class OrderService : IOrderService
     );
 
     private static OrderStatus MapStatus(string status) =>
-        status.Trim().ToLowerInvariant() switch
-        {
-            "pending" => OrderStatus.Pending,
-            "paid" => OrderStatus.Paid,
-            "confirmed" => OrderStatus.Confirmed,
-            "shipped" => OrderStatus.Shipped,
-            "delivered" => OrderStatus.Delivered,
-            "cancelled" => OrderStatus.Cancelled,
-            _ => OrderStatus.Pending,
-        };
+        OrderStatusValueConverter.FromStorage(status);
 
     private static string ToFrontendStatus(OrderStatus status) =>
         status switch
         {
-            OrderStatus.Pending => "pending",
+            OrderStatus.Accepted => "accepted",
+            OrderStatus.InProduction => "in_production",
+            OrderStatus.Ready => "ready",
             OrderStatus.Paid => "paid",
-            OrderStatus.Confirmed => "confirmed",
-            OrderStatus.Shipped => "shipped",
-            OrderStatus.Delivered => "shipped",
+            OrderStatus.InTransit => "in_transit",
+            OrderStatus.Delivered => "delivered",
             OrderStatus.Cancelled => "cancelled",
-            _ => "pending",
+            _ => "accepted",
         };
 
     private static string PatchSnapshotIds(string snapshotJson, Guid orderId, Guid customerId, OrderStatus status)
@@ -254,6 +299,50 @@ public class OrderService : IOrderService
         catch
         {
             return snapshotJson;
+        }
+    }
+
+    private static string PatchSnapshotPayment(string snapshotJson, Order order)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(snapshotJson) ? "{}" : snapshotJson);
+            using var stream = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(stream))
+            {
+                writer.WriteStartObject();
+                var written = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                void WriteString(string name, string value)
+                {
+                    writer.WriteString(name, value);
+                    written.Add(name);
+                }
+
+                void WriteNumber(string name, decimal value)
+                {
+                    writer.WriteNumber(name, value);
+                    written.Add(name);
+                }
+
+                WriteString("status", ToFrontendStatus(order.Status));
+                WriteNumber("amountPaid", order.AmountPaid);
+                WriteNumber("balanceDue", order.BalanceDue);
+
+                foreach (var prop in doc.RootElement.EnumerateObject())
+                {
+                    if (written.Contains(prop.Name))
+                        continue;
+                    prop.WriteTo(writer);
+                }
+
+                writer.WriteEndObject();
+            }
+            return System.Text.Encoding.UTF8.GetString(stream.ToArray());
+        }
+        catch
+        {
+            return PatchSnapshotStatus(snapshotJson, order.Status);
         }
     }
 }

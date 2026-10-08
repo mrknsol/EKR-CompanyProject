@@ -9,6 +9,7 @@ import { CartPage } from './pages/CartPage';
 import { CheckoutPage } from './pages/CheckoutPage';
 import { PaymentPage } from './pages/PaymentPage';
 import { OrderSuccessPage } from './pages/OrderSuccessPage';
+import { OrderDetailPage } from './pages/OrderDetailPage';
 import { DeliveryPage } from './pages/DeliveryPage';
 import { AboutPage } from './pages/AboutPage';
 import { ProfilePage } from './pages/ProfilePage';
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="checkout" element={<CheckoutPage />} />
           <Route path="payment" element={<PaymentPage />} />
           <Route path="order-success/:id" element={<OrderSuccessPage />} />
+          <Route path="orders/:id" element={<OrderDetailPage />} />
           <Route path="delivery" element={<DeliveryPage />} />
           <Route path="about" element={<AboutPage />} />
           <Route path="profile" element={<ProfilePage />} />

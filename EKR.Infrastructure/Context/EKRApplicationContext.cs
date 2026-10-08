@@ -1,4 +1,5 @@
 using EKR.Domain.Models;
+using EKR.Infrastructure.Converters;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -123,10 +124,7 @@ namespace EKR.Infrastructure.Context;
                     .HasColumnType("jsonb")
                     .Metadata.SetValueComparer(listStringComparer);
 
-                entity.HasMany(p => p.OrderItems)
-                    .WithOne(oi => oi.Product)
-                    .HasForeignKey(oi => oi.ProductId)
-                    .OnDelete(DeleteBehavior.Cascade);
+                entity.Ignore(p => p.OrderItems);
 
                 entity.HasMany(p => p.ProductReviews)
                     .WithOne(pr => pr.Product)
@@ -140,7 +138,7 @@ namespace EKR.Infrastructure.Context;
                 
                 entity.Property(o => o.TotalAmount).IsRequired();
                 entity.Property(o => o.TotalPieces).IsRequired();
-                entity.Property(o => o.Status).IsRequired().HasConversion<string>();
+                entity.Property(o => o.Status).IsRequired().HasConversion(new OrderStatusValueConverter());
                 entity.Property(o => o.ShippingAddress).IsRequired().HasMaxLength(500);
                 entity.Property(o => o.CreatedAt).IsRequired();
                 entity.Property(o => o.PaymentMethod).HasMaxLength(100);
@@ -164,6 +162,7 @@ namespace EKR.Infrastructure.Context;
                 
                 entity.Property(oi => oi.Quantity).IsRequired();
                 entity.HasIndex(oi => new { oi.OrderId, oi.ProductId });
+                entity.Ignore(oi => oi.Product);
             });
 
             modelBuilder.Entity<AppRole>(entity =>

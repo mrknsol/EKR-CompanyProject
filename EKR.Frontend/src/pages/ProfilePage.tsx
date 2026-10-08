@@ -2,6 +2,10 @@ import { Navigate, Link, useNavigate } from 'react-router-dom';
 import { useState, type FormEvent } from 'react';
 import { CountrySelect, PhoneField, LocaleCurrencyBar } from '../components/LocaleControls';
 import { OrderEditPanel } from '../components/OrderEditPanel';
+import { OrderPayPanel } from '../components/OrderPayPanel';
+import { OrderProgress } from '../components/OrderProgress';
+import { statusLabel } from '../components/browserNotify';
+import { isOrderEditable } from '../constants/orderStatus';
 import { countryByCode, countryLabel } from '../data/countries';
 import { LANGS } from '../data/localeDict';
 import { CURRENCIES } from '../constants/currency';
@@ -167,21 +171,25 @@ export function ProfilePage() {
                 {myOrders.map((o) => {
                   const version = o.currentVersion ?? 1;
                   const isEditing = editingOrderId === o.id;
-                  const canEdit = o.status !== 'cancelled' && o.status !== 'shipped';
+                  const canEdit = isOrderEditable(o.status);
                   return (
                     <div key={o.id} className="profile-order-block">
                       <div className="profile-order-row">
                         <div>
-                          <strong>{o.id}</strong>
+                          <strong>{o.id.slice(0, 8)}…</strong>
                           <div className="muted">
                             {new Date(o.createdAt).toLocaleString()} ·{' '}
-                            {t('order_version', { n: version })}
+                            {t('order_version', { n: version })} ·{' '}
+                            {statusLabel(o.status, lang)}
                           </div>
                         </div>
                         <div>
                           {o.totalPieces} {t('pcs')} · {format(o.totalPrice)}
                         </div>
                         <div className="profile-order-actions">
+                          <Link to={`/orders/${o.id}`} className="btn btn-primary">
+                            {t('order_track')}
+                          </Link>
                           <button
                             type="button"
                             className="btn btn-ghost"
@@ -199,7 +207,7 @@ export function ProfilePage() {
                           {canEdit && (
                             <button
                               type="button"
-                              className="btn btn-primary"
+                              className="btn btn-ghost"
                               onClick={() =>
                                 setEditingOrderId(isEditing ? null : o.id)
                               }
@@ -209,6 +217,8 @@ export function ProfilePage() {
                           )}
                         </div>
                       </div>
+                      <OrderProgress status={o.status} lang={lang} compact />
+                      <OrderPayPanel order={o} compact />
                       {isEditing && (
                         <OrderEditPanel
                           order={o}

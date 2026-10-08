@@ -52,7 +52,10 @@ namespace EKR.Infrastructure.Configurations
                     p.IsInStock,
                     p.ProductColors ?? new List<string>(),
                     p.ProductSizes ?? new List<string>(),
-                    p.ImageUrls ?? new List<string>()
+                    p.ImageUrls ?? new List<string>(),
+                    4,
+                    p.ModelType + " " + p.Code,
+                    ""
                 ));
 
             CreateMap<ProductDTO, Product>()
@@ -134,7 +137,8 @@ namespace EKR.Infrastructure.Configurations
                 .ReverseMap()
                 .ForMember(dest => dest.Customer, opt => opt.Ignore())
                 .ForMember(dest => dest.OrderItems, opt => opt.Ignore())
-                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => Enum.Parse<OrderStatus>(src.Status)))
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src =>
+                    EKR.Infrastructure.Converters.OrderStatusValueConverter.FromStorage(src.Status)))
                 .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore());
 
             CreateMap<OrderItem, OrderItemDetailsDTO>()
@@ -155,7 +159,7 @@ namespace EKR.Infrastructure.Configurations
                 {
                     CustomerId = dto.CustomerId,
                     ShippingAddress = dto.ShippingAddress,
-                    Status = OrderStatus.Pending,
+                    Status = OrderStatus.Accepted,
                     CreatedAt = DateTime.UtcNow
                 })
                 .ForMember(dest => dest.Id, opt => opt.Ignore())

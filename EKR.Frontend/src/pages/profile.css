@@ -31,6 +31,9 @@
 .profile-order-block {
   padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
 }
 
 .profile-order-row {

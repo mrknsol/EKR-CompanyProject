@@ -10,5 +10,8 @@ public record ProductDTO (
     bool IsInStock,
     List<string> colors,
     List<string> sizes,
-    List<string> imageUrls
+    List<string> imageUrls,
+    int PiecesPerSeries = 4,
+    string Name = "",
+    string Description = ""
 );

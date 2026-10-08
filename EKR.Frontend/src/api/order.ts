@@ -1,4 +1,5 @@
 import { api } from './client';
+import { normalizeOrderStatus } from '../constants/orderStatus';
 import type { Order, OrderStatus } from '../types';
 
 interface WholesaleOrderDTO {
@@ -58,7 +59,7 @@ function mapDto(dto: WholesaleOrderDTO): Order {
   return {
     id: dto.id,
     createdAt: dto.createdAt,
-    status: (dto.status as OrderStatus) || 'pending',
+    status: normalizeOrderStatus(dto.status || snapshot.status),
     customer,
     items: snapshot.items ?? [],
     totalPieces: dto.totalPieces ?? snapshot.totalPieces ?? 0,
@@ -114,6 +115,11 @@ export async function updateOrderStatusRequest(
   const { data } = await api.put<ApiEnvelope<WholesaleOrderDTO>>(`/Order/${id}/status`, {
     status,
   });
+  return mapDto(unwrap(data));
+}
+
+export async function payOrderBalanceRequest(id: string): Promise<Order> {
+  const { data } = await api.post<ApiEnvelope<WholesaleOrderDTO>>(`/Order/${id}/pay-balance`);
   return mapDto(unwrap(data));
 }
 

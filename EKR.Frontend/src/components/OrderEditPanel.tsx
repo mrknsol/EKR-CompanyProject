@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { CartColorLine, Order, OrderItemSnapshot, Product } from '../types';
+import { isOrderEditable } from '../constants/orderStatus';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { saveOrderEdits } from '../store/slices/ordersSlice';
 import { selectAllProducts } from '../store/slices/productsSlice';
@@ -45,7 +46,7 @@ export function OrderEditPanel({ order, onClose }: Props) {
     return map;
   }, [products]);
 
-  const canEdit = order.status !== 'cancelled' && order.status !== 'shipped';
+  const canEdit = isOrderEditable(order.status);
 
   function setSeries(productId: string, colorCode: string, seriesCount: number) {
     setDraft((items) =>

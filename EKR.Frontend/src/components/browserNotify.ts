@@ -1,5 +1,7 @@
 import type { OrderStatus } from '../types';
 
+export type NotificationAudience = 'customer' | 'admin';
+
 export interface AppNotification {
   id: string;
   orderId: string;
@@ -10,10 +12,13 @@ export interface AppNotification {
   body: string;
   createdAt: string;
   read: boolean;
+  audience?: NotificationAudience;
+  kind?: 'status' | 'new_order' | 'payment';
 }
 
 const CHANNEL = 'zeir-order-notifications';
 const STATUS_MAP_KEY = 'zeir-order-status-map';
+const ADMIN_ORDERS_MAP_KEY = 'zeir-admin-orders-map';
 const SW_PATH = '/sw-notifications.js';
 
 let swReady: Promise<ServiceWorkerRegistration | null> | null = null;
@@ -52,7 +57,6 @@ export async function requestNotificationPermission(): Promise<
   return result;
 }
 
-/** Show a system (Chrome/macOS) notification via Service Worker when possible. */
 export async function showBrowserNotification(
   title: string,
   body: string,
@@ -68,7 +72,6 @@ export async function showBrowserNotification(
     const ready = reg ? await navigator.serviceWorker.ready : null;
 
     if (ready) {
-      // Preferred: OS notification through SW (works better when tab is backgrounded)
       await ready.showNotification(title, {
         body,
         icon: '/favicon.svg',
@@ -93,7 +96,8 @@ export async function showBrowserNotification(
     n.onclick = () => {
       window.focus();
       n.close();
-      if (orderId) window.location.href = '/profile';
+      if (orderId) window.location.href = `/orders/${orderId}`;
+      else window.location.href = '/profile';
     };
   } catch (err) {
     console.error('Failed to show browser notification', err);
@@ -106,7 +110,7 @@ export function broadcastNotification(notification: AppNotification) {
     channel.postMessage({ type: 'order-status', notification });
     channel.close();
   } catch {
-    /* unsupported */
+    throw ("broadcastNotification Error")
   }
 }
 
@@ -139,15 +143,34 @@ export function writeStatusMap(map: Record<string, OrderStatus>) {
   localStorage.setItem(STATUS_MAP_KEY, JSON.stringify(map));
 }
 
+export function readAdminOrdersMap(): Record<string, OrderStatus> {
+  try {
+    const raw = localStorage.getItem(ADMIN_ORDERS_MAP_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, OrderStatus>) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function writeAdminOrdersMap(map: Record<string, OrderStatus>) {
+  localStorage.setItem(ADMIN_ORDERS_MAP_KEY, JSON.stringify(map));
+}
+
 export function statusLabel(status: OrderStatus, lang: string): string {
   const map: Record<OrderStatus, Record<string, string>> = {
-    pending: { ru: 'ожидает оплаты', en: 'pending payment', zh: '待付款', az: 'gözləyir' },
+    accepted: { ru: 'принят', en: 'accepted', zh: '已接单', az: 'qəbul edilib' },
+    in_production: { ru: 'в пошиве', en: 'in production', zh: '缝制中', az: 'tikilir' },
+    ready: { ru: 'готов', en: 'ready', zh: '已就绪', az: 'hazırdır' },
     paid: { ru: 'оплачен', en: 'paid', zh: '已付款', az: 'ödənilib' },
-    confirmed: { ru: 'подтверждён', en: 'confirmed', zh: '已确认', az: 'təsdiqlənib' },
-    shipped: { ru: 'отправлен', en: 'shipped', zh: '已发货', az: 'göndərilib' },
+    in_transit: { ru: 'в пути', en: 'in transit', zh: '配送中', az: 'yoldadır' },
+    delivered: { ru: 'доставлен', en: 'delivered', zh: '已送达', az: 'çatdırılıb' },
     cancelled: { ru: 'отменён', en: 'cancelled', zh: '已取消', az: 'ləğv edilib' },
   };
   return map[status]?.[lang] ?? map[status]?.en ?? status;
+}
+
+function ntfId() {
+  return `ntf-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
 export function buildStatusNotification(params: {
@@ -159,22 +182,106 @@ export function buildStatusNotification(params: {
 }): AppNotification {
   const label = statusLabel(params.status, params.lang);
   const shortId = params.orderId.slice(0, 8);
-  return {
-    id: `ntf-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    orderId: params.orderId,
-    userId: params.userId,
-    userEmail: params.userEmail,
-    status: params.status,
-    title: 'ZEIR',
-    body:
+  let body: string;
+  if (params.status === 'ready') {
+    body =
+      params.lang === 'ru'
+        ? `Заказ ${shortId}… готов. Оплатите остаток в личном кабинете.`
+        : params.lang === 'zh'
+          ? `订单 ${shortId}… 已就绪，请支付尾款。`
+          : params.lang === 'az'
+            ? `Sifariş ${shortId}… hazırdır. Qalan məbləği ödəyin.`
+            : `Order ${shortId}… is ready. Please pay the remaining balance.`;
+  } else if (params.status === 'delivered') {
+    body =
+      params.lang === 'ru'
+        ? `Заказ ${shortId}… доставлен. Приятного ношения!`
+        : params.lang === 'zh'
+          ? `订单 ${shortId}… 已送达。`
+          : params.lang === 'az'
+            ? `Sifariş ${shortId}… çatdırılıb.`
+            : `Order ${shortId}… has been delivered.`;
+  } else {
+    body =
       params.lang === 'ru'
         ? `Статус заказа ${shortId}…: ${label}`
         : params.lang === 'zh'
           ? `订单 ${shortId}… 状态：${label}`
           : params.lang === 'az'
             ? `Sifariş ${shortId}… statusu: ${label}`
-            : `Order ${shortId}… status: ${label}`,
+            : `Order ${shortId}… status: ${label}`;
+  }
+  return {
+    id: ntfId(),
+    orderId: params.orderId,
+    userId: params.userId,
+    userEmail: params.userEmail,
+    status: params.status,
+    title: 'ZEIR',
+    body,
     createdAt: new Date().toISOString(),
     read: false,
+    audience: 'customer',
+    kind: 'status',
+  };
+}
+
+export function buildAdminNewOrderNotification(params: {
+  orderId: string;
+  customerName: string;
+  userEmail: string;
+  lang: string;
+}): AppNotification {
+  const shortId = params.orderId.slice(0, 8);
+  const body =
+    params.lang === 'ru'
+      ? `Новый заказ ${shortId}… от ${params.customerName}`
+      : params.lang === 'zh'
+        ? `新订单 ${shortId}…，客户：${params.customerName}`
+        : params.lang === 'az'
+          ? `Yeni sifariş ${shortId}… — ${params.customerName}`
+          : `New order ${shortId}… from ${params.customerName}`;
+
+  return {
+    id: ntfId(),
+    orderId: params.orderId,
+    userEmail: params.userEmail,
+    status: 'accepted',
+    title: 'ZEIR Admin',
+    body,
+    createdAt: new Date().toISOString(),
+    read: false,
+    audience: 'admin',
+    kind: 'new_order',
+  };
+}
+
+export function buildAdminPaymentNotification(params: {
+  orderId: string;
+  customerName: string;
+  userEmail: string;
+  lang: string;
+}): AppNotification {
+  const shortId = params.orderId.slice(0, 8);
+  const body =
+    params.lang === 'ru'
+      ? `${params.customerName} оплатил заказ ${shortId}…`
+      : params.lang === 'zh'
+        ? `${params.customerName} 已支付订单 ${shortId}…`
+        : params.lang === 'az'
+          ? `${params.customerName} sifarişi ödədi ${shortId}…`
+          : `${params.customerName} paid order ${shortId}…`;
+
+  return {
+    id: ntfId(),
+    orderId: params.orderId,
+    userEmail: params.userEmail,
+    status: 'paid',
+    title: 'ZEIR Admin',
+    body,
+    createdAt: new Date().toISOString(),
+    read: false,
+    audience: 'admin',
+    kind: 'payment',
   };
 }

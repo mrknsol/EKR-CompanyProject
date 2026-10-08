@@ -1,0 +1,30 @@
+.order-detail-page {
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.order-detail-card {
+  padding: 1.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.order-detail-card h3 {
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.order-pay-card {
+  border: 1px solid color-mix(in srgb, #b45309 40%, var(--line, #ddd));
+  background: color-mix(in srgb, #b45309 8%, transparent);
+}
+
+.order-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
