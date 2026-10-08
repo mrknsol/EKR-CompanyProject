@@ -31,7 +31,8 @@ var corsOrigins = builder.Configuration["Cors:Origins"]
         "http://localhost:5173",
         "http://localhost:5174",
         "http://127.0.0.1:5173",
-        "http://localhost:4173"
+        "http://localhost:4173",
+        "https://zeir.vercel.app"
     ];
 
 builder.Services.AddCors(options =>
