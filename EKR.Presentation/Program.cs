@@ -24,16 +24,21 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-var corsOrigins = builder.Configuration["Cors:Origins"]
+string[] defaultCorsOrigins =
+[
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5173",
+    "http://localhost:4173",
+    "https://zeir.vercel.app"
+];
+var extraCorsOrigins = builder.Configuration["Cors:Origins"]
     ?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-    ??
-    [
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://127.0.0.1:5173",
-        "http://localhost:4173",
-        "https://zeir.vercel.app"
-    ];
+    ?? [];
+var corsOrigins = defaultCorsOrigins
+    .Concat(extraCorsOrigins)
+    .Distinct(StringComparer.OrdinalIgnoreCase)
+    .ToArray();
 
 builder.Services.AddCors(options =>
 {
