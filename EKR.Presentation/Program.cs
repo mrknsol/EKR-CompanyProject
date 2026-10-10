@@ -54,7 +54,16 @@ builder.Services.AddTransient<IAccountService, AccountService>();
 builder.Services.AddTransient<IProductService, ProductService>();
 builder.Services.AddTransient<IOrderService, OrderService>();
 builder.Services.AddScoped<IFactoryOrderPublisher, FactoryOrderPublisher>();
-builder.Services.AddSingleton<IFileStorageService, MinioStorageService>();
+
+if (CloudinaryStorageService.IsConfigured(builder.Configuration))
+{
+    builder.Services.AddHttpClient<IFileStorageService, CloudinaryStorageService>();
+}
+else
+{
+    // Local-only fallback. Do not use MinIO on Render — constructor must stay lazy.
+    builder.Services.AddSingleton<IFileStorageService, MinioStorageService>();
+}
 
 builder.Services.AddAuthentication(options =>
 {
@@ -133,6 +142,35 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("Frontend");
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (Exception ex)
+    {
+        // Ensure CORS headers are present even on unhandled errors (browsers otherwise report CORS).
+        var origin = context.Request.Headers.Origin.ToString();
+        if (!string.IsNullOrEmpty(origin) &&
+            corsOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase))
+        {
+            context.Response.Headers.Append("Access-Control-Allow-Origin", origin);
+            context.Response.Headers.Append("Vary", "Origin");
+        }
+
+        if (context.Response.HasStarted) throw;
+
+        context.Response.Clear();
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsJsonAsync(new
+        {
+            success = false,
+            message = app.Environment.IsDevelopment() ? ex.Message : "Internal server error"
+        });
+    }
+});
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

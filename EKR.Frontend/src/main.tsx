@@ -6,6 +6,7 @@ import './index.css';
 import './styles/animations.css';
 import App from './App.tsx';
 import { persistor, store } from './store';
+import { setAuthTokens } from './api/client';
 import { fetchProducts } from './store/slices/productsSlice';
 import { fetchMe, selectIsAdmin, selectSession } from './store/slices/authSlice';
 import { fetchAllOrders, fetchMyOrders } from './store/slices/ordersSlice';
@@ -30,6 +31,7 @@ function AppBootstrap({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (session?.token) {
+      setAuthTokens(session.token, session.refreshToken);
       void dispatch(fetchMe());
       void dispatch(isAdmin ? fetchAllOrders() : fetchMyOrders());
     }

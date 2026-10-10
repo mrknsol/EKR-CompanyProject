@@ -1,4 +1,4 @@
-import { api } from './client';
+import { api, setAuthTokens } from './client';
 import type { AuthSession, User, UserRole } from '../types';
 
 interface AuthResponseDTO {
@@ -89,7 +89,9 @@ export async function loginRequest(email: string, password: string): Promise<Aut
           'Login failed'
       );
     }
-    return mapAuth(payload);
+    const session = mapAuth(payload);
+    setAuthTokens(session.token, session.refreshToken);
+    return session;
   } catch (err: unknown) {
     const ax = err as {
       code?: string;
@@ -128,22 +130,33 @@ export async function registerRequest(payload: {
     phoneNumber: payload.phoneNumber,
     country: payload.country,
   });
-  return mapAuth(unwrap(data));
+  const session = mapAuth(unwrap(data));
+  setAuthTokens(session.token, session.refreshToken);
+  return session;
 }
 
 export async function refreshRequest(refreshToken: string): Promise<AuthSession> {
   const { data } = await api.post<ApiEnvelope<AuthResponseDTO>>('/Auth/refresh', {
     refreshToken,
   });
-  return mapAuth(unwrap(data));
+  const session = mapAuth(unwrap(data));
+  setAuthTokens(session.token, session.refreshToken);
+  return session;
 }
 
 export async function logoutRequest(): Promise<void> {
-  await api.post('/Auth/logout');
+  try {
+    await api.post('/Auth/logout');
+  } finally {
+    setAuthTokens(null, null);
+  }
 }
 
 export async function fetchMeRequest(session: AuthSession): Promise<AuthSession> {
-  const { data } = await api.get<ApiEnvelope<ProfileDTO>>('/Account/me');
+  setAuthTokens(session.token, session.refreshToken);
+  const { data } = await api.get<ApiEnvelope<ProfileDTO>>('/Account/me', {
+    headers: { Authorization: `Bearer ${session.token}` },
+  });
   return mapProfile(unwrap(data), session);
 }
 

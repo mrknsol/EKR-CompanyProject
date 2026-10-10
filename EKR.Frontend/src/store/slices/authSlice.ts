@@ -7,6 +7,7 @@ import {
   registerRequest,
   updateProfileRequest,
 } from '../../api/auth';
+import { setAuthTokens } from '../../api/client';
 import { countryByCode } from '../../data/countries';
 
 interface AuthState {
@@ -124,11 +125,13 @@ const authSlice = createSlice({
     logout(state) {
       state.session = null;
       state.error = null;
+      setAuthTokens(null, null);
     },
     setSession(state, action: PayloadAction<AuthSession>) {
       state.session = action.payload;
       state.loading = false;
       state.error = null;
+      setAuthTokens(action.payload.token, action.payload.refreshToken);
     },
     clearAuthError(state) {
       state.error = null;
@@ -143,6 +146,7 @@ const authSlice = createSlice({
       .addCase(login.fulfilled, (state, action) => {
         state.loading = false;
         state.session = action.payload;
+        setAuthTokens(action.payload.token, action.payload.refreshToken);
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
@@ -155,6 +159,7 @@ const authSlice = createSlice({
       .addCase(register.fulfilled, (state, action) => {
         state.loading = false;
         state.session = action.payload;
+        setAuthTokens(action.payload.token, action.payload.refreshToken);
       })
       .addCase(register.rejected, (state, action) => {
         state.loading = false;
@@ -162,22 +167,27 @@ const authSlice = createSlice({
       })
       .addCase(fetchMe.fulfilled, (state, action) => {
         state.session = action.payload;
+        setAuthTokens(action.payload.token, action.payload.refreshToken);
       })
       .addCase(fetchMe.rejected, (state, action) => {
         if (action.payload === 'unauthorized' || action.payload === 'Not authenticated') {
           state.session = null;
+          setAuthTokens(null, null);
         }
       })
       .addCase(saveProfile.fulfilled, (state, action) => {
         state.session = action.payload;
+        setAuthTokens(action.payload.token, action.payload.refreshToken);
       })
       .addCase(logoutAsync.fulfilled, (state) => {
         state.session = null;
         state.error = null;
+        setAuthTokens(null, null);
       })
       .addCase(logoutAsync.rejected, (state) => {
         state.session = null;
         state.error = null;
+        setAuthTokens(null, null);
       });
   },
 });

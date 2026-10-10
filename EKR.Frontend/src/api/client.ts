@@ -7,6 +7,15 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+/** In-memory token so requests work before redux-persist flushes to localStorage. */
+let memoryAccessToken: string | null = null;
+let memoryRefreshToken: string | null = null;
+
+export function setAuthTokens(token: string | null, refreshToken?: string | null) {
+  memoryAccessToken = token;
+  if (refreshToken !== undefined) memoryRefreshToken = refreshToken;
+}
+
 type PersistedAuth = {
   session?: string | { token?: string; refreshToken?: string } | null;
 };
@@ -25,6 +34,8 @@ function readPersistedSession(): { token?: string; refreshToken?: string } | nul
 }
 
 function writePersistedTokens(token: string, refreshToken: string, tokenExpiry: string) {
+  memoryAccessToken = token;
+  memoryRefreshToken = refreshToken;
   const raw = localStorage.getItem('persist:zeir-auth');
   if (!raw) return;
   try {
@@ -44,9 +55,11 @@ function writePersistedTokens(token: string, refreshToken: string, tokenExpiry: 
 }
 
 api.interceptors.request.use((config) => {
+  if (config.headers.Authorization) return config;
   const session = readPersistedSession();
-  if (session?.token) {
-    config.headers.Authorization = `Bearer ${session.token}`;
+  const token = memoryAccessToken || session?.token;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
@@ -55,12 +68,13 @@ let refreshPromise: Promise<string | null> | null = null;
 
 async function refreshAccessToken(): Promise<string | null> {
   const session = readPersistedSession();
-  if (!session?.refreshToken) return null;
+  const refreshToken = memoryRefreshToken || session?.refreshToken;
+  if (!refreshToken) return null;
 
   try {
     const { data } = await axios.post(
       `${API_BASE}/Auth/refresh`,
-      { refreshToken: session.refreshToken },
+      { refreshToken },
       { headers: { 'Content-Type': 'application/json' } }
     );
     const payload = data?.data ?? data?.Data ?? data;
